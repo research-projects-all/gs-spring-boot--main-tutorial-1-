@@ -1,0 +1,5 @@
+name: codeql-config
+paths:
+  - complete/
+paths-ignore:
+  - initial/
