@@ -10,60 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  # ======================================================
-  # 1️⃣ Build and SonarCloud analysis (only /complete)
-  # ======================================================
-  build:
-    name: Build and SonarCloud (complete)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
-
-      - name: Cache Maven repository
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2-
-
-      - name: Build (only complete/)
-        working-directory: complete
-        run: ./mvnw -B -DskipTests verify
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: SonarCloud scan (only complete/)
-        if: env.SONAR_TOKEN != ''
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORG: ${{ secrets.SONAR_ORG }}
-        working-directory: complete
-        run: |
-          ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988 sonar \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.organization=${{ env.SONAR_ORG }} \
-            -Dsonar.projectKey=research-projects-all_gs-spring-boot--main-tutorial-1- \
-            -Dsonar.projectName="Spring Boot (complete)" \
-            -Dsonar.java.binaries=target/classes
-
-  # ======================================================
-  # 2️⃣ CodeQL static analysis (Java)
-  # ======================================================
+ 
   codeql:
     name: CodeQL (Java)
     runs-on: ubuntu-latest
