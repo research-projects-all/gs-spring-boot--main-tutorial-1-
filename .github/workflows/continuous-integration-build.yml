@@ -1,4 +1,4 @@
-name: CI & CodeQL
+name: CI & CodeQL Analysis
 
 on:
   push:
@@ -10,10 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  # ---- Regular build + Sonar ----
+  # ======================================================
+  # 1️⃣ Build and SonarCloud analysis (only /complete)
+  # ======================================================
   build:
-    name: Build (complete) and Sonar
+    name: Build and SonarCloud (complete)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,15 +47,23 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: SonarQube scan (only complete/)
+      - name: SonarCloud scan (only complete/)
         if: env.SONAR_TOKEN != ''
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORG: ${{ secrets.SONAR_ORG }}
         working-directory: complete
-        run: ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=research-projects-all_gs-spring-boot--main-tutorial-1-
+        run: |
+          ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988 sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization=${{ env.SONAR_ORG }} \
+            -Dsonar.projectKey=research-projects-all_gs-spring-boot--main-tutorial-1- \
+            -Dsonar.projectName="Spring Boot (complete)" \
+            -Dsonar.java.binaries=target/classes
 
-  # ---- CodeQL analysis ----
+  # ======================================================
+  # 2️⃣ CodeQL static analysis (Java)
+  # ======================================================
   codeql:
     name: CodeQL (Java)
     runs-on: ubuntu-latest
@@ -60,12 +71,14 @@ jobs:
       contents: read
       security-events: write
       actions: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Initialize CodeQL with manual build
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -73,9 +86,11 @@ jobs:
           build-mode: manual
           config-file: ./.github/codeql/codeql-config.yml
 
-      - name: Build for CodeQL (only complete/)
+      # Build only the "complete" project (avoid duplicate FQCNs)
+      - name: Build for CodeQL (complete/)
         working-directory: complete
         run: ./mvnw -q -DskipTests package
 
+      # Analyze
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
