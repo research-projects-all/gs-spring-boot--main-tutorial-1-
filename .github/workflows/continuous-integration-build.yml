@@ -98,7 +98,7 @@ jobs:
         run: |
           mvn -B -f complete/pom.xml clean verify
 
-      # Run SonarCloud from the module POM
+      # Run SonarCloud 
       - name: SonarCloud Scan (complete)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
