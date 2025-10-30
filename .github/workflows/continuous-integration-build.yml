@@ -78,13 +78,13 @@ jobs:
     name: SonarCloud (complete)
     runs-on: ubuntu-latest
     permissions:
-      contents: read         # allow checkout
-      pull-requests: read    # for PR decorations
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0     # better blame/coverage linking
+          fetch-depth: 0   # needed for proper blame/PR decoration
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -93,16 +93,21 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # Build + tests + JaCoCo report in the 'complete' module
-      - name: Maven verify (with JaCoCo)
+      # Build tests + generate JaCoCo XML for the 'complete' module
+      - name: Maven verify (complete)
         run: |
-          cd complete
-          mvn -B -DskipTests=false clean verify
+          mvn -B -f complete/pom.xml clean verify
 
-      # SonarCloud analysis (uses sonar-project.properties at repo root)
-      - name: SonarCloud Scan
+      # Run SonarCloud from the module POM
+      - name: SonarCloud Scan (complete)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # enables PR decoration
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B sonar:sonar -Dsonar.token="${SONAR_TOKEN}"
+          mvn -B -f complete/pom.xml \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization=research-projects-all \
+            -Dsonar.projectKey=research-projects-all_gs-spring-boot--main-tutorial-1- \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.token="${SONAR_TOKEN}"
