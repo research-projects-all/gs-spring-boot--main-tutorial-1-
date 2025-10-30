@@ -1,43 +1,58 @@
-name: CI & CodeQL Analysis
+name: CI Build
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
-
-permissions:
-  contents: read
+    branches:
+      - main
+  # Optional: uncomment to run CodeQL weekly as well
+  # schedule:
+  #   - cron: '0 5 * * 1'  # Mondays 05:00 UTC
 
 jobs:
- 
+  build:
+    uses: spring-guides/getting-started-macros/.github/workflows/build_initial_complete_maven_gradle.yml@main
+
   codeql:
     name: CodeQL (Java)
     runs-on: ubuntu-latest
+
+    # Required for CodeQL to upload SARIF results
     permissions:
+      actions: read
       contents: read
       security-events: write
-      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'java' ]  # add more if needed, e.g. 'kotlin'
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Initialize CodeQL with manual build
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'   # or '17' if your project targets Java 17
+          cache: 'maven'       # change to 'gradle' if you only use Gradle
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: java
-          build-mode: manual
-          config-file: ./.github/codeql/codeql-config.yml
+          languages: ${{ matrix.language }}
+          # Adds extra security & quality queries
+          queries: security-extended,security-and-quality
 
-      # Build only the "complete" project (avoid duplicate FQCNs)
-      - name: Build for CodeQL (complete/)
-        working-directory: complete
-        run: ./mvnw -q -DskipTests package
+      # Tries to build the project automatically (Maven/Gradle supported)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-      # Analyze
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
