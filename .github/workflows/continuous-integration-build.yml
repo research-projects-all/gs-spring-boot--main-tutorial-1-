@@ -2,14 +2,11 @@ name: CI Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-  # Optional scheduled CodeQL scan
+    branches: [ main ]
   # schedule:
-  #   - cron: '0 5 * * 1' # Mondays 05:00 UTC
+  #   - cron: '0 5 * * 1' # optional weekly CodeQL scan
 
 jobs:
   build:
@@ -38,7 +35,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: 'maven' # Maven cache; Gradle uses its own action below if needed
+          cache: 'maven'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -46,26 +43,27 @@ jobs:
           languages: java
           queries: security-extended,security-and-quality
 
-      # ---------- Maven build (module) ----------
-      - name: Build with Maven (if pom.xml exists)
+      # ---------- Prefer Maven if pom.xml exists ----------
+      - name: Build with Maven
         if: hashFiles(format('{0}/pom.xml', matrix.module)) != ''
         run: |
           cd "${{ matrix.module }}"
           mvn -B -DskipTests package
 
-      # ---------- Gradle build (module) ----------
-      - name: Set up Gradle (if Gradle build present)
-        if: |
-          hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
-          hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+      # ---------- Only fall back to Gradle if NO pom.xml ----------
+      - name: Set up Gradle (fallback)
+        if: hashFiles(format('{0}/pom.xml', matrix.module)) == '' && (
+              hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
+              hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+            )
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build with Gradle (if build.gradle present)
-        if: |
-          hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
-          hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+      - name: Build with Gradle (fallback)
+        if: hashFiles(format('{0}/pom.xml', matrix.module)) == '' && (
+              hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
+              hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+            )
         run: |
-          # Prefer wrapper if present at repo root; otherwise try gradle
           if [ -x "./gradlew" ]; then
             ./gradlew -p "${{ matrix.module }}" build -x test
           else
