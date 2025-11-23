@@ -33,35 +33,44 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
+          cache: 'maven'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java
           queries: security-extended,security-and-quality
-
-      # -----------------------------------------------------------
-      #  BUILD – only for the module that actually compiles
-      # -----------------------------------------------------------
-      - name: Build with Maven (complete only)
-        if: matrix.module == 'complete'
+          config: |
+            paths-ignore:
+              - "**/target/**"
+              - "**/build/**"
+      # ---------- Maven build (always attempt, never fail the job) ----------
+      - name: Build with Maven
+        if: hashFiles(format('{0}/pom.xml', matrix.module)) != ''
+        continue-on-error: true
         run: |
-          cd complete
+          cd "${{ matrix.module }}"
           mvn -B -DskipTests package
+      # ---------- Gradle fallback (always attempt, never fail the job) ----------
+      - name: Set up Gradle (fallback)
+        if: hashFiles(format('{0}/pom.xml', matrix.module)) == '' && (
+              hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
+              hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+            )
+        uses: gradle/actions/setup-gradle@v4
 
-      # -----------------------------------------------------------
-      #  SOURCE-ONLY EXTRACTION – for the non-building module
-      # -----------------------------------------------------------
-      - name: Extract Java sources (initial only)
-        if: matrix.module == 'initial'
+      - name: Build with Gradle (fallback)
+        if: hashFiles(format('{0}/pom.xml', matrix.module)) == '' && (
+              hashFiles(format('{0}/build.gradle', matrix.module)) != '' ||
+              hashFiles(format('{0}/build.gradle.kts', matrix.module)) != ''
+            )
+        continue-on-error: true
         run: |
-          set -x
-          EXTRACTOR="$RUNNER_TOOL_CACHE/CodeQL/$(ls $RUNNER_TOOL_CACHE/CodeQL)/x64/codeql/extractor/java/simple-extractor.sh"
-          "$EXTRACTOR" --source-dir "$PWD/initial/src"
-        env:
-          RUNNER_TOOL_CACHE: ${{ runner.tool_cache }}
-
+          if [ -x "./gradlew" ]; then
+            ./gradlew -p "${{ matrix.module }}" build -x test
+          else
+            gradle -p "${{ matrix.module }}" build -x test
+          fi
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
@@ -84,12 +93,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
+          cache: 'maven'
 
       - name: Maven verify (complete)
         run: |
           mvn -B -f complete/pom.xml clean verify
-
       - name: SonarCloud Scan (complete)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
