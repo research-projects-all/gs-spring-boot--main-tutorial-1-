@@ -23,22 +23,45 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17', cache: maven }
 
+      # ----------------------------------------------------------
+      #  Tell CodeQL HOW to extract for this matrix slice
+      # ----------------------------------------------------------
+      - name: Create CodeQL config
+        run: |
+          if [[ "${{ matrix.module }}" == "initial" ]]; then
+            # source-only extraction – no build required
+            cat > codeql-config.yml <<'EOF'
+          name: "CodeQL config"
+          disable-default-queries: false
+          extraction:
+            java:
+              build_tool: none          # <-- key line
+          EOF
+          else
+            # normal mode – we will compile
+            cat > codeql-config.yml <<'EOF'
+          name: "CodeQL config"
+          disable-default-queries: false
+          EOF
+          fi
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java
           queries: security-extended,security-and-quality
+          config-file: ./codeql-config.yml          # <-- use the file above
 
       # ----------------------------------------------------------
-      #  BUILD STEP – only run for the folder that actually builds
+      #  BUILD – only for the module that actually compiles
       # ----------------------------------------------------------
       - name: Build with Maven
-        if: matrix.module == 'complete'          # <── skip initial
+        if: matrix.module == 'complete'
         run: |
           cd complete
           mvn -B -DskipTests package
 
-      # (Gradle fallback omitted for brevity – same idea: only for 'complete')
+      # (add the Gradle fallback here if you need it, again only for 'complete')
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
