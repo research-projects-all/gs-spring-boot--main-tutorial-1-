@@ -18,10 +18,31 @@ jobs:
       fail-fast: false
       matrix:
         module: ["initial", "complete"]
-    steps:
+       steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17', cache: maven }
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+          queries: security-extended,security-and-quality
+
+      # --- normal build for complete ---------------------------------
+      - name: Build with Maven
+        if: matrix.module == 'complete'
+        run: cd complete && mvn -B -DskipTests package
+
+      # --- manual extraction for initial ------------------------------
+      - name: Extract Java sources (initial only)
+        if: matrix.module == 'initial'
+        run: |
+          "$CODEQL_DIST/extractor/java/simple-extractor.sh" \
+            --source-dir "$PWD/initial/src"
+        env:
+          CODEQL_DIST: ${{ runner.tool_cache }}/CodeQL/*/x64/codeql
+
 
       # ----------------------------------------------------------
       #  Tell CodeQL HOW to extract for this matrix slice
