@@ -78,7 +78,6 @@ rules:
           - pattern: $SERVICE.getById($ID)
           - pattern: $SERVICE.findById($ID)
     pattern-sanitizers:
-      # Heuristic: codebases vary; this catches common ownership checks near the sink.
       - pattern-either:
           - pattern: $OBJ.getOwner().equals($AUTH.getName())
           - pattern: $OBJ.getUser().getId().equals($AUTH_ID)
@@ -106,9 +105,9 @@ rules:
           - pattern: "@PathVariable String $URL"
     pattern-sinks:
       - pattern-either:
-          - pattern: return "redirect:" + $URL
-          - pattern: new org.springframework.web.servlet.view.RedirectView($URL)
-          - pattern: $RESP.sendRedirect($URL)
+          - pattern: return "redirect:" + $URL;
+          - pattern: new org.springframework.web.servlet.view.RedirectView($URL);
+          - pattern: $RESP.sendRedirect($URL);
 
   # ============================================================
   # A02: Cryptographic Failures
@@ -173,7 +172,6 @@ rules:
           - pattern: $JDBC.queryForObject($SQL, ...)
           - pattern: $JDBC.update($SQL, ...)
           - pattern: $JDBC.execute($SQL)
-    # Heuristic sanitizer: parameterized form where SQL is constant and params are separate
     pattern-sanitizers:
       - pattern-either:
           - pattern: $JDBC.query($SQL, $ARGS, ...)
@@ -199,8 +197,8 @@ rules:
           - pattern: "@PathVariable String $X"
     pattern-sinks:
       - pattern-either:
-          - pattern: return $X
-          - pattern: return org.springframework.http.ResponseEntity.ok($X)
+          - pattern: return $X;
+          - pattern: return org.springframework.http.ResponseEntity.ok($X);
     pattern-sanitizers:
       - pattern-either:
           - pattern: org.springframework.web.util.HtmlUtils.htmlEscape($X)
@@ -289,15 +287,11 @@ rules:
         - "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html"
     patterns:
       - pattern: |
-          DocumentBuilderFactory $F = DocumentBuilderFactory.newInstance();
+          javax.xml.parsers.DocumentBuilderFactory $F = javax.xml.parsers.DocumentBuilderFactory.newInstance();
           ...
           $F.newDocumentBuilder().parse(...);
-      - pattern-not: |
-          DocumentBuilderFactory $F = DocumentBuilderFactory.newInstance();
-          ...
+      - pattern-not-inside: |
           $F.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-          ...
-          $F.newDocumentBuilder().parse(...);
 
   - id: SPRING-OWASP-LDAP-INJECTION-FILTER
     message: >
@@ -396,7 +390,6 @@ rules:
         - "**/build.gradle"
         - "**/build.gradle.kts"
     patterns:
-      # Heuristic examples; adjust to your baseline versions
       - pattern-regex: "(?i)<spring-boot\\.version>1\\."
       - pattern-regex: "(?i)<spring-boot\\.version>2\\.0"
       - pattern-regex: "(?i)org\\.springframework\\.boot:spring-boot-starter-parent:1\\."
