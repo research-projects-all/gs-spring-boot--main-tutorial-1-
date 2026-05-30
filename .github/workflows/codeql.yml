@@ -5,8 +5,6 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  schedule:
-    - cron: "30 2 * * 1"
 
 jobs:
   analyze:
@@ -29,13 +27,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          source-root: ${{ matrix.project-dir }}
 
       - name: Build Spring Boot project
         working-directory: ${{ matrix.project-dir }}
